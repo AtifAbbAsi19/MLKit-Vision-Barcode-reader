@@ -30,6 +30,10 @@ allprojects {
         maven {
             url "https://maven.google.com" // Google's Maven repository
         }
+        maven { url "https://jitpack.io" } 
+        mavenLocal()
+        google()
+        jcenter()
     }
 }
 
