@@ -182,7 +182,7 @@ Then, in your Manifest.xml  file (usually the app/Manifest.xml), add the Camera 
     }
 
 
-  //class for observing camera view changes
+     //class for observing camera view changes
     private class YourImageAnalyzer(val context:Context) : ImageAnalysis.Analyzer {
 
         val TAG_PROXY = "ImageProxy"
