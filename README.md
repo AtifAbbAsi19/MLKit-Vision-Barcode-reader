@@ -46,10 +46,20 @@ android {
 dependencies {
   // ...
   
-  // Barcode model
+ // Barcode model
     implementation 'com.google.mlkit:barcode-scanning:16.1.0'
-    
-    //Camera X
+
+    // Or comment the dependency above and uncomment the dependency below to
+    // use unbundled model that depends on Google Play Services
+    // implementation 'com.google.android.gms:play-services-mlkit-barcode-scanning:16.1.3'
+
+
+    // CameraX
+/*    implementation "androidx.camera:camera-camera2:1.0.0-SNAPSHOT"
+    implementation "androidx.camera:camera-lifecycle:1.0.0-SNAPSHOT"
+    implementation "androidx.camera:camera-view:1.0.0-SNAPSHOT"
+
+  */
     implementation 'androidx.camera:camera-core:1.0.0-rc01'
     implementation 'androidx.camera:camera-camera2:1.0.0-rc01'
     implementation "androidx.camera:camera-view:1.0.0-alpha20"
@@ -99,5 +109,155 @@ Then, in your Manifest.xml  file (usually the app/Manifest.xml), add the Camera 
   
        </Application
 
+     @Nullable
+     private var previewUseCase: Preview? = null
 
+    lateinit var imageCapture: ImageCapture
+
+    lateinit var cameraView: PreviewView
+    lateinit var camera: Camera
+
+    lateinit var cameraSelector: CameraSelector
+
+    // if camera permission is granted 
+    
+    private fun startCameraMLKit() {
+
+        //val executor: Executor = Executors.newSingleThreadExecutor()
+        val executor = ContextCompat.getMainExecutor(this)
+
+
+        // Listener that will help us in future to identify if camera is attached or not
+        val cameraProvider = ProcessCameraProvider.getInstance(this)
+        //Runnable will notify us view and changes , and second param is main Thread
+        cameraProvider.addListener(Runnable {
+
+            try {
+                bindPreviewMlCameraView(cameraProvider.get())
+            } catch (e: ExecutionException) {
+                // No errors need to be handled for this Future.
+                // This should never be reached.
+            } catch (e: InterruptedException) {
+            }
+        }, executor)
+
+
+    }
+
+     // binding camera with view
+     private fun bindPreviewMlCameraView(cameraProvider: ProcessCameraProvider) {
+
+
+        previewUseCase = Preview.Builder().build()
+        previewUseCase?.setSurfaceProvider(cameraView.surfaceProvider)
+
+        imageCapture = ImageCapture.Builder().build()//for image etc
+
+        //camera face
+        cameraSelector =
+            CameraSelector.Builder().requireLensFacing(CameraSelector.LENS_FACING_BACK).build()
+
+        //val executor: Executor = Executors.newSingleThreadExecutor()
+        val executor = ContextCompat.getMainExecutor(this)
+
+
+        val imageAnalyzer = ImageAnalysis.Builder()
+            .build()
+            .also {
+                it.setAnalyzer(executor, YourImageAnalyzer(this))
+            }
+
+
+        cameraProvider.unbindAll()//unbinding if it already exist
+
+        camera =
+            cameraProvider.bindToLifecycle(
+                this,
+                cameraSelector,
+                previewUseCase,
+                imageAnalyzer
+            )
+
+
+    }
+
+
+  //class for observing camera view changes
+    private class YourImageAnalyzer(val context:Context) : ImageAnalysis.Analyzer {
+
+        val TAG_PROXY = "ImageProxy"
+
+        var options: BarcodeScannerOptions = BarcodeScannerOptions.Builder()
+            .setBarcodeFormats(
+                Barcode.FORMAT_ALL_FORMATS
+            )
+            .build()
+
+        val scanner = BarcodeScanning.getClient(options)
+
+
+        @RequiresApi(Build.VERSION_CODES.KITKAT)
+        @SuppressLint("UnsafeExperimentalUsageError")
+        override fun analyze(imageProxy: ImageProxy) {
+
+
+            try {
+                val mediaImage = imageProxy.image
+                if (mediaImage != null) {
+
+                    val image =
+                        InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
+
+                    Log.d(TAG_PROXY, "success")
+                    scan(image, imageProxy)
+
+                }
+            } catch (ex: java.lang.Exception) {
+                ex.message
+                Log.d(TAG_PROXY, "Failure")
+                imageProxy.close()
+            }
+
+
+        }
+
+        public fun scan(image: InputImage, imageProxy: ImageProxy) {
+
+
+            val result = scanner.process(image)
+                .addOnSuccessListener { barCodes ->
+
+
+                    if (barCodes.isEmpty()) {
+                        Log.d(TAG_PROXY, "BarCode:Empty")
+                        return@addOnSuccessListener
+                    }
+
+                    // Task completed successfully
+                    // [START_EXCLUDE]
+                    // [START get_barcodes]
+                    for (barcode in barCodes) {
+                        val bounds = barcode.boundingBox
+                        val corners = barcode.cornerPoints
+
+                        val rawValue = barcode.rawValue
+
+                        val valueType = barcode.valueType
+                        // See API reference for complete list of supported types
+                        Log.d("$TAG_PROXY: TESTING: ", "Barcode detected: $rawValue")
+                        Toast.makeText(context, "BarCode:$rawValue", Toast.LENGTH_LONG).show()
+                    }
+                }
+                .addOnFailureListener {
+                    Log.d("$TAG_PROXY: TESTING: ", "Failure ${it.message}")
+                    imageProxy.close()
+                }
+                .addOnCompleteListener {
+                    Log.v("$TAG_PROXY: TESTING: ", "Barcode detected: Completed")
+                    imageProxy.close()
+
+                }
+        }
+
+    }
 
