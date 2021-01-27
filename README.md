@@ -165,10 +165,23 @@ Then, in your Manifest.xml  file (usually the app/Manifest.xml), add the Camera 
         val executor = ContextCompat.getMainExecutor(this)
 
 
-        val imageAnalyzer = ImageAnalysis.Builder()
+       //        val imageAnalyzer = ImageAnalysis.Builder()
+       //     .build()
+         //   .also {
+           //     it.setAnalyzer(executor, YourImageAnalyzer(this))
+            //}
+            
+            val metrics = DisplayMetrics().also { binding.previewView.display.getRealMetrics(it) }
+        // define the screen size
+            val screenSize = Size(metrics.widthPixels, metrics.heightPixels)
+
+            val imageAnalyzer = ImageAnalysis.Builder()
+            .setTargetResolution(screenSize)
+            .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
             .build()
+
             .also {
-                it.setAnalyzer(executor, YourImageAnalyzer(this))
+                it.setAnalyzer(executor, visionImageAnalyzer)
             }
 
 
